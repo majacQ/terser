@@ -119,7 +119,7 @@ template_string_with_predefined_constants: {
         var barber = 'This is ${0/0}';
 
         var a = "4194304";
-        var b = "16777216"; // Potential for further concatentation
+        var b = "16777216"; // Potential for further concatenation
         var c = `${4**14}`; // Not worth converting
     }
 }
@@ -535,7 +535,6 @@ tagged_template_with_invalid_escape: {
         "\\u",
         "\\u",
     ]
-    node_version: ">=10"
 }
 
 tagged_call_with_invalid_escape_2: {
@@ -560,7 +559,6 @@ tagged_call_with_invalid_escape_2: {
         "\\4321\\u\\x",
         "\\4321\\u\\x",
     ]
-    node_version: ">=10"
 }
 
 es2018_revision_of_template_escapes_1: {
@@ -572,7 +570,6 @@ es2018_revision_of_template_escapes_1: {
     }
     expect_exact: "console.log(String.raw\`\\unicode \\xerces \\1234567890\`);"
     expect_stdout: "\\unicode \\xerces \\1234567890"
-    node_version: ">=10"
 }
 
 tagged_call_with_invalid_escape: {
@@ -587,14 +584,13 @@ tagged_call_with_invalid_escape: {
     expect_stdout: [
         "\\4321\\u\\x",
     ]
-    node_version: ">=10"
 }
 
 invalid_unicode_escape_in_regular_string: {
     options = {
         defaults: true,
     }
-    input: `
+    bad_input: `
         console.log("FAIL\\u")
     `
     expect_error: ({
@@ -609,7 +605,7 @@ invalid_escape_in_template_string_1: {
     options = {
         defaults: true,
     }
-    input: `
+    bad_input: `
         console.log(\`\\unicode \\xerces\ \\1234567890\`);
     `
     expect_error: ({
@@ -624,7 +620,7 @@ invalid_escape_in_template_string_2: {
     options = {
         defaults: true,
     }
-    input: `
+    bad_input: `
         console.log(\`\\u\`.charCodeAt(0));
     `
     expect_error: ({
@@ -639,7 +635,7 @@ invalid_escape_in_template_string_3: {
     options = {
         defaults: true,
     }
-    input: `
+    bad_input: `
         console.log("FAIL\\041" + \`\\041\`);
     `
     expect_error: ({
@@ -654,7 +650,7 @@ invalid_escape_in_template_string_4: {
     options = {
         defaults: true,
     }
-    input: `
+    bad_input: `
         console.log("FAIL\\x21" + \`\\x\`);
     `
     expect_error: ({
@@ -669,7 +665,7 @@ invalid_escape_in_template_string_5: {
     options = {
         defaults: true,
     }
-    input: `
+    bad_input: `
         console.log("FAIL\\x21" + \`\\xERROR\`);
     `
     expect_error: ({
@@ -681,7 +677,7 @@ invalid_escape_in_template_string_5: {
 }
 
 invalid_hex_character_pattern: {
-    input: `
+    bad_input: `
         console.log('\\u{-1}')
     `
     expect_error: ({
@@ -693,7 +689,7 @@ invalid_hex_character_pattern: {
 }
 
 invalid_unicode_patterns: {
-    input: `
+    bad_input: `
         "\\u{110000}"
     `
     expect_error: ({
@@ -703,7 +699,7 @@ invalid_unicode_patterns: {
 }
 
 invalid_unicode_patterns_2: {
-    input: `
+    bad_input: `
         "\\u{100000061}"
     `
     expect_error: ({
@@ -713,7 +709,7 @@ invalid_unicode_patterns_2: {
 }
 
 invalid_unicode_patterns_3: {
-    input: `
+    bad_input: `
         "\\u{fffffffffff}"
     `
     expect_error: ({
@@ -723,7 +719,7 @@ invalid_unicode_patterns_3: {
 }
 
 untagged_template_with_ill_formed_unicode_escape: {
-    input: `
+    bad_input: `
         console.log(\`\\u{-1}\`)
     `
     expect_error: ({
@@ -740,7 +736,6 @@ tagged_template_with_ill_formed_unicode_escape: {
     }
     expect_exact: "console.log(String.raw`\\u{-1}`);";
     expect_stdout: "\\u{-1}"
-    node_version: ">=10"
 }
 
 tagged_template_with_comment: {
@@ -753,7 +748,6 @@ tagged_template_with_comment: {
         "\\u",
         "\\x"
     ]
-    node_version: ">=10"
 }
 
 tagged_template_valid_strict_legacy_octal: {
@@ -763,7 +757,6 @@ tagged_template_valid_strict_legacy_octal: {
     }
     expect_exact: '"use strict";console.log(String.raw`\\u\\x\\567`);'
     expect_stdout: "\\u\\x\\567"
-    node_version: ">=10"
 }
 
 tagged_template_function_inline_1: {
@@ -907,8 +900,8 @@ equality: {
         var b = `1${any}2` === `12`
     }
     expect: {
-        var a = "12" == `1${any}2`
-        var b = "12" == `1${any}2`
+        var a = `1${any}2` == "12"
+        var b = `1${any}2` == "12"
     }
 }
 
@@ -939,4 +932,22 @@ special_chars_in_string: {
         var concat=`foo ${any} bar\`;\n\`\${any}`;
         var template=`foo \`;\n\`\${any} ${any} bar`;
     }
+}
+
+template_string_new_parens: {
+    input: {
+        new Thing()``
+    }
+    expect_exact: "(new Thing)``;"
+}
+
+template_string_nested: {
+    input: {
+        console.log(`${`${2,0}`} ${1}`)
+        console.log(`${String.raw`${2,0}\n`} ${1}`)
+    }
+    expect_stdout: [
+        "0 1",
+        "0\\n 1",
+    ]
 }

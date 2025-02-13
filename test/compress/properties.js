@@ -140,8 +140,8 @@ mangle_properties: {
         a["foo"] = "bar";
         a.color = "red";
         x = {"bar": 10};
-        a.run(x.bar, a.foo);
-        a['run']({color: "blue", foo: "baz"});
+        a.doRun(x.bar, a.foo);
+        a['doRun']({color: "blue", foo: "baz"});
     }
     expect: {
         a["o"]="bar";a.color="red";x={l:10};a.u(x.l,a.o);a["u"]({color:"blue",o:"baz"});
@@ -199,6 +199,31 @@ mangle_unquoted_properties: {
             a.b = 9;
             a.r = 3;
         }
+    }
+}
+
+mangle_nth_identifier: {
+    mangle = {
+        properties: {
+            nth_identifier: (function () {
+                function get(n) {
+                    return "zyxwvutsrq"[n];
+                }
+                return {
+                    get
+                };
+            })()
+        },
+    }
+    input: {
+        var a = {};
+        a.foo = "bar";
+        x = { baz: "ban" };
+    }
+    expect: {
+        var a = {};
+        a.v = "bar";
+        x = { u: "ban" };
     }
 }
 
@@ -1004,7 +1029,7 @@ issue_2256: {
     }
     expect: {
         var g = {};
-        g.keep = g.g;
+        g.keep = g.v;
     }
 }
 
@@ -1136,6 +1161,20 @@ lhs_prop_2: {
         "abc".b = "g";
         "def"[2] = "g";
         "ghi"[""] = "g";
+    }
+}
+
+lhs_prop_3: {
+    options = {
+        evaluate: true,
+        properties: true,
+        unsafe: true,
+    }
+    input: {
+        ({ prop: 'do not put me in the LHS!' })["prop"] = 1;
+    }
+    expect: {
+        ({ prop: 'do not put me in the LHS!' }).prop = 1;
     }
 }
 
@@ -1311,6 +1350,46 @@ computed_property: {
         "foo",
         "bar"
     ]
+}
+
+skip_computed_properties: {
+    options = {
+        evaluate: true,
+        inline: true,
+    }
+    input: {
+        export class A {
+            [(() => class {})()] = 1;
+        }
+    }
+    expect: {
+        export class A {
+            [(() => class {})()] = 1;
+        }
+    }
+}
+
+skip_computed_properties_2: {
+    options = {
+        toplevel: true,
+        evaluate: true,
+        inline: true,
+        reduce_vars: true,
+        unused: true,
+        collapse_vars: true,
+    }
+    input: {
+        function f(o) {
+            return {[o.key]: o};
+        }
+        var obj = {key: 'xyz'.slice(1, -1)};
+        console.log(f(obj));
+    }
+    expect: {
+        var obj = {key: 'xyz'.slice(1, -1)};
+        console.log((o=obj, {[o.key]: o}));
+        var o;
+    }
 }
 
 new_this: {

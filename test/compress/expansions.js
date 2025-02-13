@@ -103,6 +103,67 @@ object_spread: {
     ]
 }
 
+object_spread_constant: {
+    options = {
+        evaluate: false,
+    }
+
+    input: {
+        id({
+            ...null,
+            ...undefined,
+            ...true,
+            ...void 0,
+            ...!0,
+            ...~"foo",
+            .../baz/,
+            ...-/baz2/,
+
+            // Several unary prefixes
+            ...!!0,
+            ...~!-+0,
+            ...void !1,
+            ...!~"foo",
+            ...+!/foo/,
+            ...!!!!!!!null,
+            ...!~void +-42,
+
+            ..."bar",
+        });
+    }
+
+    expect: {
+        id({
+            ..."bar"
+        })
+    }
+}
+
+// https://github.com/terser/terser/pull/1071
+object_spread_inline_after_dropping_undefined: {
+    input: {
+        let o = { ...undefined, ...{a: true} }
+        id(o);
+    }
+
+    expect: {
+        let o = {a: true};
+        id(o)
+    }
+}
+object_spread_inline_after_dropping_null: {
+    input: {
+        let o = { ...null, ...{a: true} }
+        id(o);
+    }
+
+    expect: {
+        let o = {a: true};
+        id(o)
+    }
+}
+
+
 avoid_spread_hole: {
     input: {
         let x = [...[,]]

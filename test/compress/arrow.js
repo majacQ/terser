@@ -690,7 +690,13 @@ issue_3092b: {
         console.log(obj.gen("pass").next().value);
     }
     expect_stdout: "PASS"
-    node_version: ">=8"
+}
+
+ternary_precedence: {
+    input: {
+        const Comp= () => (()=> [1,2,3,4].find((n => n > 3))) ? 1 : 2;
+    }
+    expect_exact: "const Comp=()=>(()=>[1,2,3,4].find((n=>n>3)))?1:2;"
 }
 
 object_parens: {

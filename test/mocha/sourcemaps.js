@@ -1,11 +1,11 @@
 import assert from "assert";
 import { readFileSync } from "fs";
-import source_map_module from "source-map"
+import source_map_module from "source-map";
 import { assertCodeWithInlineMapEquals } from "./utils.js";
 import { to_ascii } from "../../lib/minify.js";
-import { minify } from "../../main.js";
+import { minify, minify_sync } from "../../main.js";
 
-const { SourceMapConsumer } = source_map_module
+const { SourceMapConsumer } = source_map_module;
 
 function read(path) {
     return readFileSync(path, "utf8");
@@ -96,7 +96,12 @@ describe("sourcemaps", function() {
         });
         if (result.error) throw result.error;
         assert.strictEqual(result.code, "({}).wat([]);");
-        assert.strictEqual(result.map, '{"version":3,"sources":["0"],"names":["wat"],"mappings":"CAAU,IACNA,IAAI"}');
+        assert.deepStrictEqual(JSON.parse(result.map), {
+            version: 3,
+            sources: ["0"],
+            names: ["wat"],
+            mappings: "CAAU,CAAC,GACPA,IAAI",
+        });
     });
     it("Should mark class literals", async function() {
         var result = await minify([
@@ -109,7 +114,12 @@ describe("sourcemaps", function() {
         });
         if (result.error) throw result.error;
         assert.strictEqual(result.code, "(class{}).wat(class{});");
-        assert.strictEqual(result.map, '{"version":3,"sources":["0"],"names":["wat"],"mappings":"CACU,SACNA,IAFJ"}');
+        assert.deepStrictEqual(JSON.parse(result.map), {
+            version: 3,
+            sources: ["0"],
+            names: ["wat"],
+            mappings: "CACU,SACNA,IAFJ",
+        });
     });
     it("Should give correct sourceRoot", async function() {
         var code = "console.log(42);";
@@ -120,7 +130,13 @@ describe("sourcemaps", function() {
         });
         if (result.error) throw result.error;
         assert.strictEqual(result.code, code);
-        assert.strictEqual(result.map, '{"version":3,"sources":["0"],"names":["console","log"],"mappings":"AAAAA,QAAQC,IAAI","sourceRoot":"//foo.bar/"}');
+        assert.deepStrictEqual(JSON.parse(result.map), {
+            version: 3,
+            sources: ["0"],
+            names: ["console","log"],
+            mappings: "AAAAA,QAAQC,IAAI",
+            sourceRoot: "//foo.bar/",
+        });
     });
     it("Should return source map as object when asObject is given", async function() {
         var code = "console.log(42);";
@@ -131,29 +147,78 @@ describe("sourcemaps", function() {
         });
         if (result.error) throw result.error;
         assert.strictEqual(result.code, code);
-        assert.deepStrictEqual(result.map, {"version":3,"sources":["0"],"names":["console","log"],"mappings":"AAAAA,QAAQC,IAAI"});
+        assert.deepStrictEqual(result.map, {
+            version: 3,
+            sources: ["0"],
+            names: ["console","log"],
+            mappings: "AAAAA,QAAQC,IAAI",
+        });
+    });
+    it("Should return source map as object when asObject is given (minify_sync)", function() {
+        var code = "console.log(42);";
+        var result = minify_sync(code, {
+            sourceMap: {
+                asObject: true,
+            },
+        });
+        if (result.error) throw result.error;
+        assert.strictEqual(result.code, code);
+        assert.deepStrictEqual(result.map, {
+            version: 3,
+            sources: ["0"],
+            names: ["console","log"],
+            mappings: "AAAAA,QAAQC,IAAI",
+        });
     });
 
     it("Should grab names from methods and properties correctly", async () => {
         const code = `class Foo {
             property = 6
-            #private = 4
             method () {}
+            async async_method() {}
+            static static_method() {}
             404() {}
             "quoted method name" () {}
             get getter(){}
             set setter(){}
+            #private = 4
+            #private_method() {}
+            get #private_getter() {}
+            set #private_setter() {}
+
+            test() {
+                this.property;
+                this.method;
+                this.async_method;
+                this.static_method;
+                this[404];
+                this["quoted method name"];
+                this.getter;
+                this.setter;
+                this.#private;
+                this.#private_method;
+                this.#private_getter;
+                this.#private_setter;
+            }
         }`;
         const result = await minify(code, {
-            sourceMap: {asObject: true},
+            sourceMap: { asObject: true },
+            mangle: { properties: true },
         });
         assert.deepStrictEqual(result.map.names, [
             "Foo",
             "property",
-            "private",
             "method",
+            "async_method",
+            "static_method",
             "getter",
-            "setter"
+            "setter",
+            "private",
+            "private_method",
+            "private_getter",
+            "private_setter",
+            "test",
+            "this",
         ]);
     });
 
@@ -169,8 +234,8 @@ describe("sourcemaps", function() {
             if (result.error) throw result.error;
             var map = JSON.parse(result.map);
             assert.equal(map.file, "simple.min.js");
-            assert.equal(map.sourcesContent.length, 1);
-            assert.equal(map.sourcesContent[0], 'let foo = x => "foo " + x;\nconsole.log(foo("bar"));');
+            assert.deepEqual(map.sources, ["index.js"]);
+            assert.deepEqual(map.sourcesContent, ['let foo = x => "foo " + x;\nconsole.log(foo("bar"));']);
         });
         it("Should process inline source map", async function() {
             var result = await minify(read("./test/input/issue-520/input.js"), {
@@ -196,7 +261,7 @@ describe("sourcemaps", function() {
             if (result.error) throw result.error;
             var code = result.code;
             assertCodeWithInlineMapEquals(code, "var a=function(n){return n};\n" +
-                "//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIjAiXSwibmFtZXMiOlsiYSIsImZvbyJdLCJtYXBwaW5ncyI6IkFBQUEsSUFBSUEsRUFBSSxTQUFTQyxHQUFPLE9BQU9BIn0=");
+                "//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIjAiXSwibmFtZXMiOlsiYSIsImZvbyJdLCJtYXBwaW5ncyI6IkFBQUEsSUFBSUEsRUFBSSxTQUFTQyxHQUFPLE9BQU9BLENBQUsifQ==");
         });
         it("Should not append source map to output js when sourceMapInline is not enabled", async function() {
             var result = await minify("var a = function(foo) { return foo; };");
@@ -219,10 +284,7 @@ describe("sourcemaps", function() {
             if (result.error) throw result.error;
             assertCodeWithInlineMapEquals(result.code, read("./test/input/issue-505/output.js"));
         });
-        // TODO skipped for 2 reasons:
-        //  - atob/btoa fail with unicode characters
-        //  - names output has changed and excludes unicode names
-        it.skip("Should work with unicode characters", async function() {
+        it("Should work with unicode characters", async function() {
             var code = [
                 "var tëst = '→unicøde←';",
                 "alert(tëst);",
@@ -249,8 +311,9 @@ describe("sourcemaps", function() {
             });
             if (result.error) throw result.error;
             map = JSON.parse(result.map);
-            assert.strictEqual(map.names.length, 2);
-            assert.strictEqual(map.names[0], "tëst");
+            assert.strictEqual(map.names.length, 1);
+            // We don't add non-ascii-identifier names
+            // assert.strictEqual(map.names[0], "tëst");
             assert.strictEqual(map.names[0], "alert");
         });
         it("Should append source map to file when asObject is present", async function() {
@@ -263,7 +326,7 @@ describe("sourcemaps", function() {
             if (result.error) throw result.error;
             var code = result.code;
             assertCodeWithInlineMapEquals(code, "var a=function(n){return n};\n" +
-                "//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIjAiXSwibmFtZXMiOlsiYSIsImZvbyJdLCJtYXBwaW5ncyI6IkFBQUEsSUFBSUEsRUFBSSxTQUFTQyxHQUFPLE9BQU9BIn0=");
+                "//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIjAiXSwibmFtZXMiOlsiYSIsImZvbyJdLCJtYXBwaW5ncyI6IkFBQUEsSUFBSUEsRUFBSSxTQUFTQyxHQUFPLE9BQU9BLENBQUsifQ==");
         });
     });
 

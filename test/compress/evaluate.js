@@ -158,6 +158,136 @@ or: {
     }
 }
 
+bitwise: {
+    options = {
+        evaluate: true,
+        side_effects: true,
+        booleans: true,
+        comparisons: true,
+    }
+    input: {
+        const any = {}
+
+        const test1 = (bar & 1) | 0
+        const test1_rev = 0 | (bar & 1)
+        const test2 = (bar & 1) & ~0
+        const test2_rev = ~0 & (bar & 1)
+        const test3 = (bar & 1) ^ 0
+        const test3_rev = 0 ^ (bar & 1)
+        const test4 = bar ^ -1
+        const test4_rev = -1 ^ bar
+        const test5 = ~(bar ^ baz)
+        const test6 = (bar | 1) | 0
+        const test7 = (bar | 1) & 2
+        const test7_rev = (1 | bar) & 2
+        const test8 = (bar | 1) & 3
+        const test9 = any | ~0
+        const test9_rev = ~0 | any
+        const test10 = any & 0
+        const test10_rev = 0 & any
+        const test11 = (bar & 7) !== 0
+        const test11_rev = 0 !== (bar & 7)
+        const test11_2 = (bar & 7) === 0
+        const test11_2_rev = 0 === (bar & 7)
+        if ((a & b) !== 0) c()
+        const test12 = (bar & 7) !== 7
+        const test12_rev = 7 == (bar & 7)
+
+        const test13 = ~~bar | 0;
+        const test13_2 = ~~~bar;
+        const test13_3 = ~~(bar | baz);
+
+        const test14 = (bar | baz) >> 0;
+    }
+    expect: {
+        const any = {};
+
+        const test1 = bar & 1
+        const test1_rev = bar & 1
+        const test2 = bar & 1
+        const test2_rev = bar & 1
+        const test3 = bar & 1
+        const test3_rev = bar & 1
+        const test4 = ~bar
+        const test4_rev = ~bar
+        const test5 = bar ^ ~baz
+        const test6 = 1 | bar
+        const test7 = 2 & bar
+        const test7_rev = 2 & bar
+        const test8 = bar & 3 | 1
+        const test9 = -1
+        const test9_rev = -1
+        const test10 = 0
+        const test10_rev = 0
+        const test11 = !!(bar & 7)
+        const test11_rev = !!(bar & 7)
+        const test11_2 = !(bar & 7)
+        const test11_2_rev = !(bar & 7)
+        if (a & b) c()
+        const test12 = !!(7 & ~bar)
+        const test12_rev = !(7 & ~bar)
+
+        const test13 = bar | 0;
+        const test13_2 = ~bar;
+        const test13_3 = bar | baz;
+
+        const test14 = bar | baz;
+    }
+}
+
+bitwise_2: {
+    options = {
+        evaluate: true,
+        side_effects: true,
+        booleans: true,
+        comparisons: true,
+    }
+    input: {
+        const any = {}
+
+        const test1 = (bar | 0) & 1
+        const test1_rev = 1 & (bar | 0)
+        const test2 = (bar & ~0) & 1
+        const test2_rev = 1 & (bar & ~0)
+        const test3 = (bar ^ 0) ^ baz
+        const test5 = ~(bar ^ ~baz)
+        const test5_2 = ~(~bar ^ baz)
+        const test5_3 = ~bar ^ ~baz
+
+        const same = globalThis.same;
+        const test6 = same & same
+        const test6_2 = same | same
+        const test6_3 = same ^ same
+    }
+    expect: {
+        const any = {};
+
+        const test1 = bar & 1
+        const test1_rev = 1 & bar
+        const test2 = bar & 1
+        const test2_rev = 1 & bar
+        const test3 = bar ^ baz
+        const test5 = bar ^ baz
+        const test5_2 = bar ^ baz
+        const test5_3 = bar ^ baz
+
+        const same = globalThis.same;
+        const test6 = 0|same
+        const test6_2 = 0|same
+        const test6_3 = 0
+    }
+}
+
+bitwise_regression: {
+    options = {
+        evaluate: true,
+    }
+    input: {
+        console.log((id(0xff00ff) | id(0x00ff00)) & 0x3fff)
+    }
+    expect_stdout: "16383"
+}
+
 unary_prefix: {
     options = {
         evaluate: true,
@@ -289,17 +419,17 @@ pow_with_number_constants: {
     }
     input: {
         var a = 5 ** NaN;
-        /* NaN exponent results to NaN */
+        // NaN exponent results to NaN
         var b = 42 ** +0;
-        /* +0 exponent results to NaN */
+        // +0 exponent results to NaN
         var c = 42 ** -0;
-        /* -0 exponent results to NaN */
+        // -0 exponent results to NaN
         var d = NaN ** 1;
-        /* NaN with non-zero exponent is NaN */
+        // NaN with non-zero exponent is NaN
         var e = 2 ** Infinity;
-        /* abs(base) > 1 with Infinity as exponent is Infinity */
+        // abs(base) > 1 with Infinity as exponent is Infinity
         var f = 2 ** -Infinity;
-        /* abs(base) > 1 with -Infinity as exponent is +0 */
+        // abs(base) > 1 with -Infinity as exponent is +0
         var g = (-7) ** (0.5);
         var h = 2324334 ** 34343443;
         var i = (-2324334) ** 34343443;
@@ -803,6 +933,27 @@ unsafe_string_bad_index: {
         );
     }
     expect_stdout: true
+}
+
+safe_array_string_length: {
+    options = {
+        reduce_vars: true,
+        evaluate: true,
+    }
+    input: {
+        const array_ref = [1, leak("side effect")]
+        console.log(
+            "Hi!!".length,
+            [1, 2].length,
+            array_ref.length,
+            [id("side eff")]
+        );
+    }
+    expect: {
+        const array_ref = [1, leak("side effect")]
+        console.log(4, 2, array_ref.length, [id("side eff")]);
+    }
+    expect_stdout: "4 2 2 [ 'side eff' ]"
 }
 
 prototype_function: {
@@ -1769,6 +1920,27 @@ issue_399: {
     }
 }
 
+issue_t1458: {
+    options = {
+        unsafe: true,
+        pure_getters: true
+    }
+    input: {
+        global.z = null
+        var a = z?.j.toString();
+        var b = z?.toString();
+        var c = z?.[0].toString();
+        global.z = [null]
+        var d = z[0]?.toString();
+        global.z = () => null
+        var e = z()?.toString();
+        var f = z()?.x.toString();
+        var g = z()?.x.toString().x;
+        console.log(typeof a, typeof b, typeof c, typeof d, typeof e, typeof f, typeof g);
+    }
+    expect_stdout: "undefined undefined undefined undefined undefined undefined undefined"
+}
+
 null_conditional_chain_eval: {
     options = {
         evaluate: true,
@@ -1783,8 +1955,29 @@ null_conditional_chain_eval: {
         null?.maybe_call?.(3)
     }
     expect: {
-        (void 0).but_might_throw;
-        (void 0)(1);
+    }
+}
+
+null_conditional_chain_eval_2: {
+    options = {
+        evaluate: true,
+        side_effects: true
+    }
+    input: {
+        null.deep?.unused
+        null.deep?.[side_effect()]
+        null.deep?.unused.but_might_throw
+        null.deep?.call(1)
+        null.deep?.(2)
+        null.deep?.maybe_call?.(3)
+    }
+    expect: {
+        null.deep
+        null.deep?.[side_effect()]
+        null.deep?.unused.but_might_throw
+        null.deep?.call(1)
+        null.deep?.(2)
+        null.deep?.maybe_call?.(3)
     }
 }
 
@@ -1828,5 +2021,114 @@ regexp_property_eval: {
         console.log(false);
         console.log(false);
         console.log(false);
+    }
+}
+
+issue_t790_strings_larger_than_refs: {
+    options = { defaults: true, sequences: false }
+    input: {
+        const string = "aaa";
+
+        aa(string);
+        aa(string);
+        aa(string);
+        aa(string);
+    }
+    expect: {
+        const string = "aaa";
+
+        aa("aaa");
+        aa("aaa");
+        aa("aaa");
+        aa("aaa");
+    }
+}
+
+issue_t790_strings_larger_than_refs_mangle: {
+    options = { defaults: true, sequences: false }
+    mangle = { module: true }
+    input: {
+        const aaaaa = "aaa";
+
+        aa(aaaaa);
+        aa(aaaaa);
+        aa(aaaaa);
+        aa(aaaaa);
+    }
+    expect: {
+        const a = "aaa";
+
+        aa(a);
+        aa(a);
+        aa(a);
+        aa(a);
+    }
+}
+
+issue_t790_strings_smaller_than_refs: {
+    options = { defaults: true, sequences: false }
+    input: {
+        const _string_ = "str";
+
+        id(_string_);
+        id(_string_);
+        id(_string_);
+        id(_string_);
+    }
+    expect: {
+        const _string_ = "str";
+
+        id("str");
+        id("str");
+        id("str");
+        id("str");
+    }
+}
+
+issue_t790_complex_expression_smaller: {
+    options = { defaults: true, toplevel: true, sequences: false }
+    mangle = { toplevel: true }
+    input: {
+        const $read$ = "oooo";
+        const $only$ = "llll";
+        const $readonly$ = $read$ + $only$;
+
+        console.log($read$);
+        console.log($read$);
+        console.log($only$);
+        console.log($only$);
+        console.log($readonly$);
+        console.log($readonly$);
+    }
+    expect: {
+        const o = "oooo", l = "llll", c = o + l;
+
+        console.log(o);
+        console.log(o);
+        console.log(l);
+        console.log(l);
+        console.log(c);
+        console.log(c);
+    }
+    expect_stdout: [
+        "oooo",
+        "oooo",
+        "llll",
+        "llll",
+        "oooollll",
+        "oooollll",
+    ]
+}
+
+unsafe_deep_chain: {
+    options = {
+        evaluate: true,
+        unsafe: true,
+    }
+    input: {
+        a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z;
+    }
+    expect: {
+        a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z;
     }
 }

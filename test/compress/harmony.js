@@ -167,6 +167,7 @@ classes_extending_classes_out_of_pure_iifes: {
     options = {
         toplevel: true,
         unused: true,
+        side_effects: true,
     }
     input: {
         let Base = /*@__PURE__*/ (() => {
@@ -301,6 +302,48 @@ export_from_statement: {
         export {C};
     }
     expect_exact: 'export*from"a.js";export{A}from"a.js";export{A,B}from"a.js";export{C};'
+}
+
+import_attributes: {
+    input: {
+        import "hello" with { key: 'value' };
+    }
+    expect_exact: 'import"hello"with{key:"value"};'
+}
+
+import_attributes_with_spaces_in_obj: {
+    input: {
+        import "hello" with { 'k e y': 'value' };
+    }
+    expect_exact: 'import"hello"with{"k e y":"value"};'
+}
+
+import_attributes_import_expr: {
+    input: {
+        import("hello", { key: "value" })
+    }
+    expect_exact: 'import("hello",{key:"value"});'
+}
+
+export_from_attributes: {
+    input: {
+        export * from "hello" with { key: 'value' };
+    }
+    expect_exact: 'export*from"hello"with{key:"value"};'
+}
+
+export_named_from_attributes: {
+    input: {
+        export { x } from "hello" with { key: 'value' };
+    }
+    expect_exact: 'export{x}from"hello"with{key:"value"};'
+}
+
+import_attributes_legacy_syntax: {
+    input: {
+        import "hello" assert { key: 'value' };
+    }
+    expect_exact: 'import"hello"with{key:"value"};'
 }
 
 import_statement_mangling: {
@@ -950,9 +993,11 @@ issue_2349b: {
         }, "blah"));
     }
     expect: {
-        console.log([ {
-            blah: 42
-        } ].map(({["blah"]: l}) => l));
+        console.log((
+            a = "blah",
+            [{ blah: 42 }].map(({[a]: l}) => l)
+        ));
+        var a;
     }
     expect_stdout: [
         "[ 42 ]",
@@ -994,6 +1039,19 @@ shorthand_keywords: {
         });
     }
     expect_exact: "var foo=0,async=1,await=2,implements=3,package=4,private=5,protected=6,static=7,yield=8;console.log({foo,0:0,NaN:NaN,async,await,false:false,implements:implements,null:null,package:package,private:private,protected:protected,static:static,this:this,true:true,undefined:void 0,yield});"
+    expect_stdout: true
+}
+
+shorthand_safari: {
+    beautify = {
+        ecma: 2015,
+        safari10: true,
+    }
+    input: {
+        var ä = "PASS";
+        console.log({ ä });
+    }
+    expect_exact: 'var ä="PASS";console.log({"ä":ä});'
     expect_stdout: true
 }
 
@@ -1878,7 +1936,7 @@ issue_t80: {
     }
     expect: {
         function foo(data = []) {
-            if (1 == arguments.length)
+            if (arguments.length == 1)
                 data = [data];
             return data;
         }

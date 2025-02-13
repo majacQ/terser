@@ -238,6 +238,69 @@ inline_into_scope_conflict_enclosed_2: {
     ]
 }
 
+issue_1267_inline_breaks_compare_identity: {
+    options = {
+        toplevel: true
+    }
+    input: {
+        class ClassA {
+        }
+        class ClassB {
+            MyA = ClassA;
+        };
+
+        console.log(new ClassB().MyA == new ClassB().MyA)
+    }
+    expect_stdout: ["true"]
+}
+
+issue_1267_inline_breaks_compare_identity_2: {
+    options = {
+        toplevel: true
+    }
+    input: {
+        class ClassA {
+        }
+        const objA = {
+            prop: ClassA
+        }
+        const objB = {
+            prop: ClassA
+        }
+
+        console.log(objA.prop === objB.prop)
+    }
+    expect_stdout: ["true"]
+}
+
+issue_1431_constructor_identity: {
+    options = {
+        toplevel: true,
+        reduce_vars: true,
+        reduce_funcs: true,
+        inline: true,
+        unused: true,
+    }
+    input: {
+        let Class = class {};
+
+        function sameConstructor() {
+            return new Class()
+        }
+
+        console.log(sameConstructor().constructor === sameConstructor().constructor)
+    }
+    expect: {
+        let Class = class {};
+
+        function sameConstructor() {
+            return new Class()
+        }
+
+        console.log(sameConstructor().constructor === sameConstructor().constructor)
+    }
+    expect_stdout: ["true"]
+}
 
 noinline_annotation: {
     options = {
@@ -432,7 +495,8 @@ do_not_repeat_when_variable_larger_than_inlined_node: {
     options = {
         toplevel: true,
         reduce_vars: true,
-        inline: true
+        inline: true,
+        unused: true,
     }
 
     mangle = {
@@ -457,5 +521,74 @@ do_not_repeat_when_variable_larger_than_inlined_node: {
         pass(s);
         pass(s);
         pass(s);
+    }
+}
+
+do_not_repeat_when_variable_larger_than_inlined_node_2: {
+    options = {
+        toplevel: true,
+        reduce_vars: true,
+        evaluate: true,
+        unused: true,
+        inline: true
+    }
+
+    input: {
+        const a=0.1, b=0.2, c=a+b;
+        console.log(c);
+    }
+
+    expect: {
+        const c=0.1+0.2;
+        console.log(c);
+    }
+}
+
+do_not_repeat_when_variable_larger_than_inlined_node_3: {
+    options = {
+        toplevel: true,
+        reduce_vars: true,
+        evaluate: true,
+        unused: true,
+        inline: true
+    }
+
+    input: {
+        const a = "string";
+        const b = "string";
+        const c = a + b;
+        console.log(c, c);
+    }
+
+    expect: {
+        const c = "stringstring";
+        console.log(c, c);
+    }
+}
+
+inline_using_correct_arguments: {
+    options = {
+        reduce_vars: true,
+        inline: true,
+        passes: 2,
+        toplevel: true,
+        unused: true
+    }
+
+    input: {
+        function run (s, t) {
+            return s.run(t);
+        }
+
+        /*#__INLINE__*/ run(a, "foo");
+        /*#__INLINE__*/ run(a, "bar");
+        /*#__INLINE__*/ run(a, "123");
+    }
+
+    expect: {
+        s = a, t = "foo", s.run(t);
+        var s, t;
+        (function(s) { return s.run("bar") })(a);
+        (function(s) { return s.run("123") })(a);
     }
 }

@@ -1,6 +1,7 @@
 import assert from "assert";
 import { exec } from "child_process";
 import fs from "fs";
+import rimraf from "rimraf";
 import { assertCodeWithInlineMapEquals } from "./utils.js";
 
 function read(path) {
@@ -47,7 +48,7 @@ describe("bin/terser", function() {
             if (err) throw err;
 
             assertCodeWithInlineMapEquals(stdout, "var bar=function(){function foo(bar){return bar}return foo}();\n" +
-                "//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInRlc3QvaW5wdXQvaXNzdWUtMTMyMy9zYW1wbGUuanMiXSwibmFtZXMiOlsiYmFyIiwiZm9vIl0sIm1hcHBpbmdzIjoiQUFBQSxJQUFJQSxJQUFNLFdBQ04sU0FBU0MsSUFBS0QsS0FDVixPQUFPQSxJQUdYLE9BQU9DLElBTEQifQ==\n");
+                "//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInRlc3QvaW5wdXQvaXNzdWUtMTMyMy9zYW1wbGUuanMiXSwibmFtZXMiOlsiYmFyIiwiZm9vIl0sIm1hcHBpbmdzIjoiQUFBQSxJQUFJQSxJQUFNLFdBQ04sU0FBU0MsSUFBS0QsS0FDVixPQUFPQSxHQUNYLENBRUEsT0FBT0MsR0FDVixDQU5TIn0=\n");
             done();
         });
     });
@@ -61,18 +62,18 @@ describe("bin/terser", function() {
             done();
         });
     });
-    it("Should not load source map before finish reading from STDIN", function(done) {
-        var mapFile = "tmp/input.js.map";
+    before(() => {
         try {
             fs.mkdirSync("./tmp");
         } catch (e) {
             if (e.code != "EEXIST") throw e;
         }
-        try {
-            fs.unlinkSync(mapFile);
-        } catch (e) {
-            if (e.code != "ENOENT") throw e;
-        }
+    });
+    after(() => {
+        rimraf.sync("./tmp");
+    });
+    it("Should not load source map before finish reading from STDIN", function(done) {
+        var mapFile = "tmp/input.js.map";
         var command = [
             tersercmd,
             "--source-map", "content=" + mapFile,
@@ -89,6 +90,29 @@ describe("bin/terser", function() {
             fs.writeFileSync(mapFile, read("test/input/source-maps/input.js.map"));
             child.stdin.end(read("test/input/source-maps/input.js"));
         }, 1000);
+    });
+    it("Should log its options into a file when given an env variable", (done) => {
+        const command = [tersercmd, "tmp/input2.js", "-mc unused=false"].join(" ");
+
+        fs.writeFileSync("tmp/input2.js", "hello(1 + 1)");
+
+        const dir = "tmp/debug-input";
+
+        exec(command, { env: { TERSER_DEBUG_DIR: dir }}, (err, stdout) => {
+            if (err) throw err;
+
+            assert(stdout.includes("hello(2)"), "make sure output isn't changed");
+
+            const inputLogs = fs.readdirSync(dir);
+            assert(inputLogs.length == 1);
+
+            const logFileContents = fs.readFileSync(dir + "/" + inputLogs.pop(), "utf-8");
+
+            assert(logFileContents.includes('"unused": false'), "includes the options");
+            assert(logFileContents.includes("input2.js: ```\nhello(1 + 1)\n```"), "includes the input");
+
+            done();
+        });
     });
     it("Should work with --keep-fnames (mangle only)", function(done) {
         var command = tersercmd + ' test/input/issue-1431/sample.js --keep-fnames -m';
@@ -239,6 +263,16 @@ describe("bin/terser", function() {
             assert.strictEqual(lines[1], "foo, bar(");
             assert.strictEqual(lines[2], "         ^");
             assert.strictEqual(lines[3], "ERROR: Unexpected token: eof (undefined)");
+            done();
+        });
+    });
+    it("Should output even when parent directory doesn't exist", function(done) {
+        var outputFile = "tmp/does-not-exist/out.js";
+        var command = tersercmd + " test/input/defaults/input.js -o " + outputFile;
+
+        exec(command, function (err) {
+            if (err) throw err;
+            assert.strictEqual(fs.readFileSync(outputFile, "utf8"), "if(true){console.log(1+2)}")
             done();
         });
     });

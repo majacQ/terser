@@ -158,7 +158,7 @@ inline_identity_async: {
     }
     expect: {
         (async () => await 1)();
-        (async x => await console.log(2))();
+        (async () => await console.log(2))();
     }
     expect_stdout: "2"
     node_version: ">=8"
@@ -206,10 +206,10 @@ inline_identity_lose_this: {
         const id = x => x;
 
         const func_bag = {
-            func: function () { return void 0 === this ? "PASS" : "FAIL"; }
+            func: function () { return this === void 0 ? "PASS" : "FAIL"; }
         };
 
-        func_bag.func2 = function () { return void 0 === this ? "PASS" : "FAIL"; };
+        func_bag.func2 = function () { return this === void 0 ? "PASS" : "FAIL"; };
 
         console.log((0, func_bag.func)());
         console.log((0, func_bag.func2)());
@@ -249,3 +249,18 @@ inline_identity_dont_lose_this_when_arg: {
     }
 }
 
+inline_trivial_fns_unless_arg_is_expansion: {
+    options = {
+        toplevel: true,
+        inline: true,
+    }
+    input: {
+        function n (n) {
+            return n;
+        }
+        (function(...o) {
+            const c=n(...o);console.log(c)
+        })("PASS");
+    }
+    expect_stdout: "PASS"
+}

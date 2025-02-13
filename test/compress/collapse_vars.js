@@ -473,7 +473,7 @@ collapse_vars_do_while: {
     expect: {
         function f1(y) {
             var c = 9;
-            do ; while (77 === c);
+            do ; while (c === 77);
         }
         function f2(y) {
             var c = 5 - y;
@@ -560,7 +560,7 @@ collapse_vars_do_while_drop_assign: {
     expect: {
         function f1(y) {
             var c = 9;
-            do ; while (77 === c);
+            do ; while (c === 77);
         }
         function f2(y) {
             var c = 5 - y;
@@ -779,7 +779,7 @@ collapse_vars_assignment: {
         function log(x) { return console.log(x), x; }
         function f0(c) {
             var a = 3 / c;
-            return a = a;
+            return a;
         }
         function f1(c) {
             return 1 - 3 / c;
@@ -1039,10 +1039,10 @@ collapse_vars_repeated: {
         function f2(x) {
             return x;
         }
-        (function(x){
+        (function(){
              console.log("GOOD!!");
         })(),
-        (function(x){
+        (function(){
              console.log("GOOD!!");
         })();
     }
@@ -1348,9 +1348,10 @@ collapse_vars_object: {
     }
     expect: {
         function f0(x, y) {
+            var z = x + y;
             return {
                 get b() { return 7; },
-                r: x + y
+                r: z,
             };
         }
         function f1(x, y) {
@@ -2002,7 +2003,7 @@ var_side_effects_1: {
     expect: {
         var print = console.log.bind(console);
         function foo(x) {
-            print('Foo:', 2 * x);
+            print('Foo:', x * 2);
         }
         foo(10);
     }
@@ -2025,7 +2026,7 @@ var_side_effects_2: {
     expect: {
         var print = console.log.bind(console);
         function foo(x) {
-            var twice = 2 * x.y;
+            var twice = x.y * 2;
             print('Foo:', twice);
         }
         foo({ y: 10 });
@@ -2051,7 +2052,7 @@ var_side_effects_3: {
     expect: {
         var print = console.log.bind(console);
         function foo(x) {
-            print('Foo:', 2 * x.y);
+            print('Foo:', x.y * 2);
         }
         foo({ y: 10 });
     }
@@ -2121,6 +2122,20 @@ iife_2: {
         !function(x) {
             console.log(x);
         }(bar());
+    }
+}
+
+iife_async: {
+    options = { unused: true, collapse_vars: true }
+    input: {
+        (async function(s) {
+            return ((s, a) => s + a)(s, await new Promise(() => {}))
+        })();
+    }
+    expect: {
+        (async function() {
+            return ((s, a) => s + a)(void 0, await new Promise(() => {}))
+        })();
     }
 }
 
@@ -2371,7 +2386,7 @@ issue_1858: {
         }(1));
     }
     expect: {
-        console.log(function(x) {
+        console.log(function() {
             var a = {}, b = a.b = 1;
             return a.b + b;
         }());
@@ -2837,7 +2852,7 @@ issue_2187_2: {
     }
     expect: {
         var b = 1;
-        console.log(function(a) {
+        console.log(function() {
             return b-- && ++b;
         }());
     }
@@ -2916,7 +2931,7 @@ issue_2203_2: {
         console.log({
             a: "FAIL",
             b: function() {
-                return function(c) {
+                return function() {
                     return (String, (Object, function() {
                         return this;
                     }())).a;
@@ -2978,7 +2993,7 @@ issue_2203_4: {
         console.log({
             a: "PASS",
             b: function() {
-                return (c => {
+                return (() => {
                     return (String, (Object, (() => this)())).a;
                 })();
             }
@@ -3113,7 +3128,7 @@ issue_2298: {
                 var a = undefined;
                 var undefined = a++;
                 try {
-                    !function(b) {
+                    !function() {
                         (void 0)[1] = "foo";
                     }();
                     console.log("FAIL");
@@ -3206,7 +3221,7 @@ issue_2319_1: {
         }()));
     }
     expect: {
-        console.log(function(a) {
+        console.log(function() {
             return !function() {
                 return this;
             }();
@@ -3254,7 +3269,7 @@ issue_2319_3: {
     }
     expect: {
         "use strict";
-        console.log(function(a) {
+        console.log(function() {
             return !function() {
                 return this;
             }();
@@ -3719,7 +3734,7 @@ issue_2425_2: {
     }
     expect: {
         var a = 8;
-        (function(b, c) {
+        (function(b) {
             b.toString();
         })(--a, a |= 10);
         console.log(a);
@@ -4341,8 +4356,8 @@ issue_2436_13: {
     expect: {
         var a = "PASS";
         (function() {
-            (function(b) {
-                (function(b) {
+            (function() {
+                (function() {
                     a && (a.null = "FAIL");
                 })();
             })();
@@ -4420,6 +4435,22 @@ issue_2497: {
     }
 }
 
+issue_997: {
+    options = {
+        defaults: true,
+    }
+    input: {
+        function main(e) {
+            console.log(e.length);
+            let other = "12";
+            for (let e; e = 0;)
+                console.log(e);
+        }
+        main("foo");
+    }
+    expect_stdout: ["3"]
+}
+
 issue_2506: {
     options = {
         collapse_vars: true,
@@ -4446,8 +4477,8 @@ issue_2506: {
     expect: {
         var c = 0;
         function f0(bar) {
-            (function(Infinity_2) {
-                (function(NaN) {
+            (function() {
+                (function() {
                     if (false <= 0/0 & this >> 1 >= 0)
                         c++;
                 })(0, c++);
@@ -6055,4 +6086,141 @@ do_not_place_chain_on_lhs_2: {
         a = b?.c;
         a.d = e;
     }
+}
+
+optional_chain_call_argument_side_effect: {
+    options = {
+        collapse_vars: true,
+    }
+    input: {
+        ((this_is_null) => {
+            const results = console.log("PASS");
+            this_is_null?.(results);
+        })(id(null));
+    }
+    expect: {
+        ((this_is_null) => {
+            const results = console.log("PASS");
+            this_is_null?.(results);
+        })(id(null));
+    }
+    expect_stdout: "PASS"
+}
+
+optional_chain_call_prop_side_effect: {
+    options = {
+        collapse_vars: true,
+    }
+    input: {
+        ((this_is_null) => {
+            const results = console.log("PASS");
+            this_is_null?.[results];
+        })(id(null));
+    }
+    expect: {
+        ((this_is_null) => {
+            const results = console.log("PASS");
+            this_is_null?.[results];
+        })(id(null));
+    }
+    expect_stdout: "PASS"
+}
+
+shadowed_variable: {
+    options = {
+        pure_getters: true,
+        collapse_vars: true,
+        unused: true,
+    }
+    input: {
+        function test(e) {
+            const result = {};
+            const test = e.test;
+
+            {
+                const e = random(test);
+                result.discretized = e
+            }
+
+            return result;
+        }
+    }
+    expect: {
+        function test(e) {
+          const result = {};
+          const test = e.test;
+          {
+            const e = random(test);
+            result.discretized = e;
+          }
+          return result;
+        }
+    }
+}
+
+shadowed_variable_2: {
+    options = {
+        pure_getters: true,
+        collapse_vars: true,
+        unused: true,
+    }
+    input: {
+        function test(e) {
+            const result = {};
+            const test = e.test;
+            {
+                {
+                    result.discretized = random(test);
+                }
+                const e = random();
+                console.log(e);
+            }
+            return result;
+        }
+    }
+    expect: {
+        function test(e) {
+            const result = {};
+            const test = e.test;
+            {
+                result.discretized = random(test);
+                const e = random();
+                console.log(e);
+            }
+            return result;
+        }
+    }
+}
+
+shadowed_variable_3: {
+    options = {
+        pure_getters: true,
+        collapse_vars: true,
+        unused: true,
+    }
+    input: {
+        if(1) {
+            var object = 1
+            var object2 = "PASS"
+            let temp_variable = id(true) ? object2 : object
+            {
+                let object = temp_variable
+                console.log(object)
+                console.log(object)
+            }
+        }
+    }
+    expect: {
+        if(1) {
+            var object = 1
+            var object2 = "PASS"
+            let temp_variable = id(true) ? object2 : object
+            {
+                let object = temp_variable
+                console.log(object)
+                console.log(object)
+            }
+        }
+    }
+    expect_stdout: ["PASS", "PASS"]
 }

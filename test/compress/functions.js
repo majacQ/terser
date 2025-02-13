@@ -434,7 +434,7 @@ inner_ref: {
         console.log(function (a) {
             return a + 1;
         }(1), function (a) {
-            return void 0 === a;
+            return a === void 0;
         }());
     }
     expect_stdout: "2 true"
@@ -1328,9 +1328,7 @@ issue_2620_4: {
     expect: {
         var c = "FAIL";
         !function() {
-            switch (NaN) {
-              case void (c = "PASS"):
-            }
+            if (NaN === void (c = "PASS"));
         }();
         console.log(c);
     }
